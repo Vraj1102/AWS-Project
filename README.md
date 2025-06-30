@@ -1,2 +1,115 @@
 # AWS-Project
 Built a high availability NGINX cluster with Keepalived on AWS EC2 using VIP failover and active-passive architecture.
+
+This project demonstrates how to build a fault-tolerant, highly available web server cluster using **NGINX**, **Keepalived**, and **AWS EC2** instances. The setup ensures zero downtime by dynamically assigning a **Virtual IP (VIP)** and failing over between servers using **VRRP protocol**.
+
+---
+
+## 📷 Architecture Diagram
+
+![HA Architecture](./A_2D_digital_diagram_illustrates_a_high_availabili.png)
+
+---
+
+## 🛠 Tech Stack
+
+- **NGINX** – Web Server
+- **Keepalived** – VIP failover via VRRP
+- **AWS EC2** – Ubuntu 22.04 Instances
+- **VRRP Protocol (112)** – Heartbeat for HA
+- **Bash / Linux Networking** – Configuration and testing
+
+---
+
+## 🎯 Objectives
+
+✅ Ensure continuous availability of web services  
+✅ Automatically fail over traffic to backup instance on failure  
+✅ Learn practical HA setup using Keepalived and NGINX  
+✅ Configure AWS infrastructure securely
+
+---
+
+## ⚙️ Infrastructure Overview
+
+- **2 EC2 instances** (Instance A and B) in the same VPC and Subnet
+- **Floating Private IP (VIP)**: `192.162.1.100`
+- **Security Group Rules**:
+  - Port 80 (HTTP)
+  - Port 22 (SSH)
+  - Protocol 112 (VRRP)
+  - ICMP (optional)
+
+---
+
+## 🧩 Steps to Deploy
+
+### 1. 🖥 Create AWS Environment
+
+- Create a **VPC** with CIDR `192.162.0.0/16`
+- Create a **subnet**: `192.162.1.0/24`
+- Launch 2 EC2 instances in the same subnet using Ubuntu 22.04
+- Allocate a **secondary private IP** (VIP): `192.162.1.100` (do not attach to any instance)
+
+### 2. 🔐 Set Up Security Group
+
+Allow the following inbound rules:
+
+| Type        | Protocol/Port | Source           |
+|-------------|----------------|------------------|
+| HTTP        | TCP 80         | 0.0.0.0/0        |
+| SSH         | TCP 22         | Your IP          |
+| Custom Prot | Protocol 112   | 192.162.1.0/24   |
+| ICMP        | All ICMP       | 0.0.0.0/0        |
+
+### 3. ⚙️ Install NGINX & Keepalived
+
+sudo apt update
+sudo apt install -y nginx keepalived net-tools
+
+
+Update web page:
+
+echo "Welcome to Instance A" | sudo tee /var/www/html/index.html
+
+4. 📦 Configure Keepalived
+Instance A – MASTER:
+
+sudo nano /etc/keepalived/keepalived.conf
+
+conf 
+
+vrrp_instance VI_1 {
+    state MASTER
+    interface eth0
+    virtual_router_id 51
+    priority 101
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass devops123
+    }
+    virtual_ipaddress {
+        192.162.1.100
+    }
+}
+
+Restart service:
+
+sudo systemctl restart keepalived
+
+🔁 Test Failover
+
+    Check VIP from any node:
+
+ip a | grep 192.162.1.100
+
+    Simulate failure:
+
+sudo systemctl stop keepalived
+
+    The VIP should move to the BACKUP instance.
+
+    Access the virtual IP in browser or with curl:
+
+curl http://192.162.1.100
